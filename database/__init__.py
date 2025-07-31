@@ -1,0 +1,1 @@
+# Database package for database adapters and connection management
