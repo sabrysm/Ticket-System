@@ -83,17 +83,46 @@ class TicketBot(commands.Bot):
             logger.warning("Commands directory not found")
             return
         
+        loaded_count = 0
+        failed_count = 0
+        
         for file_path in commands_dir.glob("*.py"):
-            if file_path.name.startswith("__"):
+            # Skip __init__.py and base_cog.py (not a command module)
+            if file_path.name.startswith("__") or file_path.name == "base_cog.py":
                 continue
                 
             module_name = f"commands.{file_path.stem}"
             
             try:
                 await self.load_extension(module_name)
-                logger.info(f"Loaded extension: {module_name}")
+                logger.info(f"✅ Loaded extension: {module_name}")
+                loaded_count += 1
             except Exception as e:
-                logger.error(f"Failed to load extension {module_name}: {e}")
+                logger.error(f"❌ Failed to load extension {module_name}: {e}")
+                failed_count += 1
+        
+        logger.info(f"Extension loading complete: {loaded_count} loaded, {failed_count} failed")
+        
+        if failed_count > 0:
+            logger.warning("Some extensions failed to load. Bot will continue with available commands.")
+    
+    async def reload_extension_safe(self, extension_name: str) -> bool:
+        """Safely reload an extension with error handling."""
+        try:
+            await self.reload_extension(extension_name)
+            logger.info(f"✅ Reloaded extension: {extension_name}")
+            return True
+        except commands.ExtensionNotLoaded:
+            try:
+                await self.load_extension(extension_name)
+                logger.info(f"✅ Loaded extension: {extension_name}")
+                return True
+            except Exception as e:
+                logger.error(f"❌ Failed to load extension {extension_name}: {e}")
+                return False
+        except Exception as e:
+            logger.error(f"❌ Failed to reload extension {extension_name}: {e}")
+            return False
     
     async def on_ready(self):
         """Called when the bot is ready and connected to Discord."""
