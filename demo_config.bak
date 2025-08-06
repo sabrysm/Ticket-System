@@ -1,0 +1,8 @@
+{
+  "global": {
+    "database_type": "sqlite",
+    "database_url": "tickets.db",
+    "log_level": "INFO"
+  },
+  "guilds": {}
+}
