@@ -90,7 +90,14 @@
   - Write unit tests for ticket manager operations
   - _Requirements: 1.1, 1.2, 1.3, 3.1, 4.1_
 
-- [ ] 4.2 Implement ticket closing and archiving functionality
+- [x] 4.2 Implement ticket closing and archiving functionality
+
+
+
+
+
+
+
   - Add ticket closing logic with transcript generation
   - Implement channel archiving and cleanup procedures
   - Create transcript saving functionality with database updates

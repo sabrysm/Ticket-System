@@ -22,6 +22,7 @@ class GuildConfig:
     guild_id: int
     staff_roles: List[int] = field(default_factory=list)
     ticket_category: Optional[int] = None
+    archive_category: Optional[int] = None
     log_channel: Optional[int] = None
     embed_settings: Dict[str, Any] = field(default_factory=dict)
     
@@ -43,6 +44,10 @@ class GuildConfig:
             if not isinstance(self.ticket_category, int) or self.ticket_category <= 0:
                 raise ValueError(f"Invalid ticket_category: {self.ticket_category}")
         
+        if self.archive_category is not None:
+            if not isinstance(self.archive_category, int) or self.archive_category <= 0:
+                raise ValueError(f"Invalid archive_category: {self.archive_category}")
+        
         if self.log_channel is not None:
             if not isinstance(self.log_channel, int) or self.log_channel <= 0:
                 raise ValueError(f"Invalid log_channel: {self.log_channel}")
@@ -53,6 +58,7 @@ class GuildConfig:
             'guild_id': self.guild_id,
             'staff_roles': self.staff_roles,
             'ticket_category': self.ticket_category,
+            'archive_category': self.archive_category,
             'log_channel': self.log_channel,
             'embed_settings': self.embed_settings
         }
@@ -64,6 +70,7 @@ class GuildConfig:
             guild_id=data['guild_id'],
             staff_roles=data.get('staff_roles', []),
             ticket_category=data.get('ticket_category'),
+            archive_category=data.get('archive_category'),
             log_channel=data.get('log_channel'),
             embed_settings=data.get('embed_settings', {})
         )

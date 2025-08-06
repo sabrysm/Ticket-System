@@ -9,7 +9,9 @@ import asyncio
 import logging
 import secrets
 import string
+import io
 from datetime import datetime
+from pathlib import Path
 from typing import Optional, List, Dict, Any
 
 import discord
@@ -39,6 +41,16 @@ class UserManagementError(TicketManagerError):
 
 class PermissionError(TicketManagerError):
     """Exception raised when user lacks required permissions."""
+    pass
+
+
+class TicketClosingError(TicketManagerError):
+    """Exception raised when ticket closing fails."""
+    pass
+
+
+class TranscriptError(TicketManagerError):
+    """Exception raised when transcript generation fails."""
     pass
 
 
@@ -490,3 +502,360 @@ class TicketManager:
         except Exception as e:
             logger.error(f"Unexpected error getting active ticket for user {user_id}: {e}")
             return None
+    
+    async def _generate_transcript(self, channel: discord.TextChannel) -> str:
+        """
+        Generate a text transcript of the ticket conversation.
+        
+        Args:
+            channel: Discord channel to generate transcript from
+            
+        Returns:
+            str: Formatted transcript content
+            
+        Raises:
+            TranscriptError: If transcript generation fails
+        """
+        try:
+            transcript_lines = []
+            transcript_lines.append(f"Ticket Transcript - {channel.name}")
+            transcript_lines.append(f"Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}")
+            transcript_lines.append("=" * 50)
+            transcript_lines.append("")
+            
+            # Fetch all messages from the channel
+            messages = []
+            async for message in channel.history(limit=None, oldest_first=True):
+                messages.append(message)
+            
+            # Format messages into transcript
+            for message in messages:
+                timestamp = message.created_at.strftime('%Y-%m-%d %H:%M:%S UTC')
+                author = f"{message.author.display_name} ({message.author.id})"
+                
+                # Handle different message types
+                if message.content:
+                    content = message.content
+                elif message.embeds:
+                    content = "[Embed Message]"
+                    for embed in message.embeds:
+                        if embed.title:
+                            content += f" Title: {embed.title}"
+                        if embed.description:
+                            content += f" Description: {embed.description}"
+                elif message.attachments:
+                    content = f"[{len(message.attachments)} Attachment(s)]"
+                    for attachment in message.attachments:
+                        content += f" {attachment.filename}"
+                else:
+                    content = "[System Message]"
+                
+                transcript_lines.append(f"[{timestamp}] {author}: {content}")
+            
+            transcript_lines.append("")
+            transcript_lines.append("=" * 50)
+            transcript_lines.append("End of Transcript")
+            
+            return "\n".join(transcript_lines)
+            
+        except discord.Forbidden:
+            raise TranscriptError("Bot lacks permission to read message history")
+        except discord.HTTPException as e:
+            raise TranscriptError(f"Discord API error generating transcript: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error generating transcript for channel {channel.id}: {e}")
+            raise TranscriptError(f"Unexpected error: {e}")
+    
+    async def _save_transcript(self, transcript_content: str, ticket_id: str, guild_id: int) -> Optional[str]:
+        """
+        Save transcript content to file and return the file path.
+        
+        Args:
+            transcript_content: The transcript text content
+            ticket_id: Unique ticket identifier
+            guild_id: Discord guild ID
+            
+        Returns:
+            Optional[str]: File path to saved transcript, None if saving failed
+            
+        Raises:
+            TranscriptError: If transcript saving fails
+        """
+        try:
+            # Create transcripts directory if it doesn't exist
+            transcripts_dir = Path("transcripts") / str(guild_id)
+            transcripts_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Generate filename with timestamp
+            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            filename = f"ticket_{ticket_id}_{timestamp}.txt"
+            file_path = transcripts_dir / filename
+            
+            # Write transcript to file
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(transcript_content)
+            
+            logger.info(f"Saved transcript for ticket {ticket_id} to {file_path}")
+            return str(file_path)
+            
+        except OSError as e:
+            logger.error(f"Failed to save transcript for ticket {ticket_id}: {e}")
+            raise TranscriptError(f"Failed to save transcript: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error saving transcript for ticket {ticket_id}: {e}")
+            raise TranscriptError(f"Unexpected error: {e}")
+    
+    async def _archive_channel(self, channel: discord.TextChannel, ticket_id: str) -> None:
+        """
+        Archive the ticket channel by moving it to archive category or deleting it.
+        
+        Args:
+            channel: Discord channel to archive
+            ticket_id: Unique ticket identifier
+            
+        Raises:
+            TicketClosingError: If channel archiving fails
+        """
+        try:
+            guild_config = self.config.get_guild_config(channel.guild.id)
+            
+            # Check if there's an archive category configured
+            archive_category_id = getattr(guild_config, 'archive_category', None)
+            
+            if archive_category_id:
+                # Move channel to archive category
+                archive_category = channel.guild.get_channel(archive_category_id)
+                if archive_category and isinstance(archive_category, discord.CategoryChannel):
+                    # Rename channel to indicate it's closed
+                    new_name = f"closed-{channel.name}"
+                    await channel.edit(
+                        name=new_name,
+                        category=archive_category,
+                        reason=f"Archived ticket {ticket_id}"
+                    )
+                    
+                    # Remove permissions for non-staff users
+                    overwrites = channel.overwrites
+                    for target, overwrite in overwrites.items():
+                        if isinstance(target, discord.Member):
+                            # Remove access for regular members, keep staff access
+                            if not any(role.id in guild_config.staff_roles for role in target.roles):
+                                await channel.set_permissions(
+                                    target,
+                                    overwrite=None,
+                                    reason=f"Archived ticket {ticket_id}"
+                                )
+                    
+                    logger.info(f"Archived channel {channel.id} for ticket {ticket_id}")
+                    return
+            
+            # If no archive category or it's invalid, delete the channel after a delay
+            await asyncio.sleep(5)  # Give time for final messages
+            await channel.delete(reason=f"Closed ticket {ticket_id}")
+            logger.info(f"Deleted channel {channel.id} for ticket {ticket_id}")
+            
+        except discord.Forbidden:
+            raise TicketClosingError("Bot lacks permission to archive/delete channel")
+        except discord.HTTPException as e:
+            raise TicketClosingError(f"Discord API error archiving channel: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error archiving channel {channel.id}: {e}")
+            raise TicketClosingError(f"Unexpected error: {e}")
+    
+    async def close_ticket(self, channel: discord.TextChannel, staff: discord.Member, 
+                          reason: Optional[str] = None) -> bool:
+        """
+        Close a ticket with transcript generation and channel archiving.
+        
+        Args:
+            channel: Ticket channel to close
+            staff: Staff member closing the ticket
+            reason: Optional reason for closing the ticket
+            
+        Returns:
+            bool: True if ticket was closed successfully
+            
+        Raises:
+            TicketClosingError: If ticket closing fails
+            PermissionError: If staff member lacks permission
+            TicketNotFoundError: If ticket is not found
+        """
+        try:
+            # Get ticket from database using channel ID
+            ticket = await self.get_ticket_by_channel(channel.id)
+            if not ticket:
+                raise TicketNotFoundError(f"No ticket found for channel {channel.id}")
+            
+            # Check if ticket is already closed
+            if ticket.status != TicketStatus.OPEN:
+                raise TicketClosingError(f"Ticket {ticket.ticket_id} is already {ticket.status.value}")
+            
+            # Verify staff permissions
+            guild_config = self.config.get_guild_config(channel.guild.id)
+            if not any(role.id in guild_config.staff_roles for role in staff.roles):
+                raise PermissionError(f"User {staff.id} is not authorized to close tickets")
+            
+            # Get ticket lock to prevent race conditions
+            lock = await self._get_ticket_lock(ticket.ticket_id)
+            async with lock:
+                # Send closing notification
+                embed = discord.Embed(
+                    title="Ticket Closing",
+                    description=f"This ticket is being closed by {staff.mention}",
+                    color=discord.Color.red(),
+                    timestamp=datetime.utcnow()
+                )
+                if reason:
+                    embed.add_field(name="Reason", value=reason, inline=False)
+                embed.add_field(name="Ticket ID", value=ticket.ticket_id, inline=True)
+                embed.add_field(name="Closed by", value=staff.mention, inline=True)
+                embed.set_footer(text="Generating transcript...")
+                
+                closing_message = await channel.send(embed=embed)
+                
+                # Generate transcript
+                try:
+                    transcript_content = await self._generate_transcript(channel)
+                    transcript_path = await self._save_transcript(
+                        transcript_content, 
+                        ticket.ticket_id, 
+                        channel.guild.id
+                    )
+                    
+                    # Update database with closed status and transcript
+                    success = await self.database.close_ticket(ticket.ticket_id, transcript_path)
+                    if not success:
+                        raise TicketClosingError(f"Failed to update ticket {ticket.ticket_id} in database")
+                    
+                    # Update closing message with transcript info
+                    embed.set_footer(text="Transcript saved successfully")
+                    if transcript_path:
+                        embed.add_field(name="Transcript", value=f"Saved to: `{transcript_path}`", inline=False)
+                    await closing_message.edit(embed=embed)
+                    
+                except TranscriptError as e:
+                    logger.warning(f"Failed to generate transcript for ticket {ticket.ticket_id}: {e}")
+                    # Still close the ticket even if transcript fails
+                    success = await self.database.close_ticket(ticket.ticket_id, None)
+                    if not success:
+                        raise TicketClosingError(f"Failed to update ticket {ticket.ticket_id} in database")
+                    
+                    embed.set_footer(text="Transcript generation failed")
+                    embed.add_field(name="Warning", value="Transcript could not be generated", inline=False)
+                    await closing_message.edit(embed=embed)
+                
+                # Send final notification to participants
+                creator = channel.guild.get_member(ticket.creator_id)
+                if creator:
+                    try:
+                        dm_embed = discord.Embed(
+                            title="Ticket Closed",
+                            description=f"Your ticket `{ticket.ticket_id}` has been closed.",
+                            color=discord.Color.blue(),
+                            timestamp=datetime.utcnow()
+                        )
+                        if reason:
+                            dm_embed.add_field(name="Reason", value=reason, inline=False)
+                        dm_embed.add_field(name="Closed by", value=staff.display_name, inline=True)
+                        dm_embed.set_footer(text=f"Server: {channel.guild.name}")
+                        
+                        await creator.send(embed=dm_embed)
+                    except discord.Forbidden:
+                        # User has DMs disabled, skip notification
+                        pass
+                    except Exception as e:
+                        logger.warning(f"Failed to send DM notification to user {creator.id}: {e}")
+                
+                # Log the closure
+                logger.info(f"Ticket {ticket.ticket_id} closed by staff {staff.id} in guild {channel.guild.id}")
+                
+                # Archive or delete the channel
+                await self._archive_channel(channel, ticket.ticket_id)
+                
+                return True
+                
+        except (PermissionError, TicketClosingError, TicketNotFoundError):
+            raise
+        except DatabaseError as e:
+            raise TicketClosingError(f"Database error closing ticket: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error closing ticket: {e}")
+            raise TicketClosingError(f"Unexpected error: {e}")
+    
+    async def force_close_ticket(self, ticket_id: str, staff: discord.Member, 
+                                reason: Optional[str] = None) -> bool:
+        """
+        Force close a ticket by ticket ID (useful when channel is deleted).
+        
+        Args:
+            ticket_id: Unique ticket identifier
+            staff: Staff member closing the ticket
+            reason: Optional reason for closing the ticket
+            
+        Returns:
+            bool: True if ticket was closed successfully
+            
+        Raises:
+            TicketClosingError: If ticket closing fails
+            PermissionError: If staff member lacks permission
+            TicketNotFoundError: If ticket is not found
+        """
+        try:
+            # Get ticket from database
+            ticket = await self.database.get_ticket(ticket_id)
+            if not ticket:
+                raise TicketNotFoundError(f"Ticket {ticket_id} not found")
+            
+            # Check if ticket is already closed
+            if ticket.status != TicketStatus.OPEN:
+                raise TicketClosingError(f"Ticket {ticket_id} is already {ticket.status.value}")
+            
+            # Verify staff permissions
+            guild = self.bot.get_guild(ticket.guild_id)
+            if not guild:
+                raise TicketClosingError(f"Guild {ticket.guild_id} not found")
+            
+            guild_config = self.config.get_guild_config(guild.id)
+            if not any(role.id in guild_config.staff_roles for role in staff.roles):
+                raise PermissionError(f"User {staff.id} is not authorized to close tickets")
+            
+            # Get ticket lock to prevent race conditions
+            lock = await self._get_ticket_lock(ticket_id)
+            async with lock:
+                # Close ticket in database (no transcript since channel may be gone)
+                success = await self.database.close_ticket(ticket_id, None)
+                if not success:
+                    raise TicketClosingError(f"Failed to update ticket {ticket_id} in database")
+                
+                # Send DM notification to creator if possible
+                creator = guild.get_member(ticket.creator_id)
+                if creator:
+                    try:
+                        dm_embed = discord.Embed(
+                            title="Ticket Closed",
+                            description=f"Your ticket `{ticket_id}` has been closed.",
+                            color=discord.Color.blue(),
+                            timestamp=datetime.utcnow()
+                        )
+                        if reason:
+                            dm_embed.add_field(name="Reason", value=reason, inline=False)
+                        dm_embed.add_field(name="Closed by", value=staff.display_name, inline=True)
+                        dm_embed.set_footer(text=f"Server: {guild.name}")
+                        
+                        await creator.send(embed=dm_embed)
+                    except discord.Forbidden:
+                        # User has DMs disabled, skip notification
+                        pass
+                    except Exception as e:
+                        logger.warning(f"Failed to send DM notification to user {creator.id}: {e}")
+                
+                logger.info(f"Force closed ticket {ticket_id} by staff {staff.id} in guild {guild.id}")
+                return True
+                
+        except (PermissionError, TicketClosingError, TicketNotFoundError):
+            raise
+        except DatabaseError as e:
+            raise TicketClosingError(f"Database error force closing ticket: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error force closing ticket {ticket_id}: {e}")
+            raise TicketClosingError(f"Unexpected error: {e}")

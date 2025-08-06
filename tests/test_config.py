@@ -85,6 +85,7 @@ class TestGuildConfig(unittest.TestCase):
             guild_id=123,
             staff_roles=[111, 222],
             ticket_category=333,
+            archive_category=555,
             log_channel=444,
             embed_settings={'color': 0xff0000}
         )
@@ -93,6 +94,7 @@ class TestGuildConfig(unittest.TestCase):
             'guild_id': 123,
             'staff_roles': [111, 222],
             'ticket_category': 333,
+            'archive_category': 555,
             'log_channel': 444,
             'embed_settings': {'color': 0xff0000}
         }
