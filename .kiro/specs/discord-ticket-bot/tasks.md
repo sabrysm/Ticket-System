@@ -110,7 +110,9 @@
   - Write unit tests for closing and archiving operations
   - _Requirements: 7.1, 7.2, 7.3, 7.4_
 
-- [-] 5. Create modular command system
+- [ ] 5. Create modular command system
+
+
 
 
 
@@ -131,14 +133,20 @@
   - Write unit tests for command loading and permission systems
   - _Requirements: 6.1, 6.4, 6.5, 8.4_
 
-- [ ] 5.2 Implement ticket commands cog
+- [x] 5.2 Implement ticket commands cog
+
+
+
   - Create TicketCommands cog with new ticket, add user, and remove user commands
   - Implement slash command definitions with proper parameter validation
   - Add command logic that integrates with TicketManager
   - Write unit tests for all ticket commands including edge cases
   - _Requirements: 1.1, 1.4, 1.5, 3.1, 3.2, 3.3, 4.1, 4.2, 4.3, 4.4, 4.5_
 
-- [ ] 5.3 Implement admin commands cog
+- [-] 5.3 Implement admin commands cog
+
+
+
   - Create AdminCommands cog with setup and configuration commands
   - Implement ticket embed sending command with button creation
   - Add configuration management commands for staff roles and categories
