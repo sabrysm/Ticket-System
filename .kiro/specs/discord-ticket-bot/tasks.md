@@ -143,7 +143,10 @@
   - Write unit tests for all ticket commands including edge cases
   - _Requirements: 1.1, 1.4, 1.5, 3.1, 3.2, 3.3, 4.1, 4.2, 4.3, 4.4, 4.5_
 
-- [-] 5.3 Implement admin commands cog
+- [x] 5.3 Implement admin commands cog
+
+
+
 
 
 
