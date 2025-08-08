@@ -18,39 +18,21 @@ import discord
 from discord.ext import commands
 
 from models.ticket import Ticket, TicketStatus
-from database.adapter import DatabaseAdapter, DatabaseError, TicketNotFoundError
+from database.adapter import DatabaseAdapter
 from config.config_manager import ConfigManager, GuildConfig
+from errors import (
+    TicketBotError, DatabaseError, TicketCreationError, UserManagementError,
+    PermissionError, TicketClosingError, TranscriptError, TicketNotFoundError,
+    log_error, handle_database_errors
+)
+from logging_config import get_logger, get_audit_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+audit_logger = get_audit_logger()
 
-
-class TicketManagerError(Exception):
-    """Base exception for ticket manager errors."""
-    pass
-
-
-class TicketCreationError(TicketManagerError):
-    """Exception raised when ticket creation fails."""
-    pass
-
-
-class UserManagementError(TicketManagerError):
-    """Exception raised when user management operations fail."""
-    pass
-
-
-class PermissionError(TicketManagerError):
-    """Exception raised when user lacks required permissions."""
-    pass
-
-
-class TicketClosingError(TicketManagerError):
-    """Exception raised when ticket closing fails."""
-    pass
-
-
-class TranscriptError(TicketManagerError):
-    """Exception raised when transcript generation fails."""
+# Legacy compatibility
+class TicketManagerError(TicketBotError):
+    """Legacy exception - use TicketBotError instead."""
     pass
 
 
@@ -243,6 +225,16 @@ class TicketManager:
             await channel.send(embed=embed)
             
             logger.info(f"Created ticket {ticket_id} for user {user.id} in guild {guild.id}")
+            
+            # Log audit event
+            audit_logger.log_ticket_created(
+                ticket_id=ticket_id,
+                user_id=user.id,
+                guild_id=guild.id,
+                channel_id=channel.id,
+                additional_info={'channel_name': channel.name}
+            )
+            
             return ticket
             
         except PermissionError:
@@ -327,6 +319,16 @@ class TicketManager:
                 await channel.send(embed=embed)
                 
                 logger.info(f"Added user {user.id} to ticket {ticket.ticket_id} by staff {staff.id}")
+                
+                # Log audit event
+                audit_logger.log_user_added(
+                    ticket_id=ticket.ticket_id,
+                    added_user_id=user.id,
+                    staff_user_id=staff.id,
+                    guild_id=channel.guild.id,
+                    channel_id=channel.id
+                )
+                
                 return True
                 
         except (PermissionError, UserManagementError, TicketNotFoundError):
@@ -420,6 +422,16 @@ class TicketManager:
                 await channel.send(embed=embed)
                 
                 logger.info(f"Removed user {user.id} from ticket {ticket.ticket_id} by staff {staff.id}")
+                
+                # Log audit event
+                audit_logger.log_user_removed(
+                    ticket_id=ticket.ticket_id,
+                    removed_user_id=user.id,
+                    staff_user_id=staff.id,
+                    guild_id=channel.guild.id,
+                    channel_id=channel.id
+                )
+                
                 return True
                 
         except (PermissionError, UserManagementError, TicketNotFoundError):

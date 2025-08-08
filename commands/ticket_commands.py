@@ -12,15 +12,18 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 
-from commands.base_cog import BaseCog, handle_errors, require_staff_role
-from core.ticket_manager import (
-    TicketManager, TicketManagerError, TicketCreationError, 
+from commands.base_cog import BaseCog
+from errors import (
+    handle_errors, require_staff_role, TicketBotError, TicketCreationError,
     UserManagementError, PermissionError as TicketPermissionError,
-    TicketClosingError, TicketNotFoundError
+    TicketClosingError, TicketNotFoundError, log_error
 )
+from logging_config import get_logger, get_audit_logger
+from core.ticket_manager import TicketManager
 from models.ticket import TicketStatus
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+audit_logger = get_audit_logger()
 
 
 class TicketCommands(BaseCog):
@@ -84,6 +87,16 @@ class TicketCommands(BaseCog):
             )
             
             await interaction.followup.send(embed=embed, ephemeral=True)
+            
+            # Log audit event for successful command usage
+            audit_logger.log_command_used(
+                command_name="new_ticket",
+                user_id=interaction.user.id,
+                guild_id=interaction.guild.id,
+                channel_id=interaction.channel.id,
+                success=True,
+                additional_info={'ticket_id': ticket.ticket_id}
+            )
             
         except TicketPermissionError as e:
             # User already has an active ticket

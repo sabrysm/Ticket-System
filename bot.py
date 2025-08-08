@@ -19,17 +19,13 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('bot.log'),
-        logging.StreamHandler()
-    ]
-)
+# Configure logging using new logging system
+from logging_config import setup_logging, get_logger, get_audit_logger
 
-logger = logging.getLogger(__name__)
+# Setup logging
+setup_logging(log_dir="logs", log_level="INFO")
+logger = get_logger(__name__)
+audit_logger = get_audit_logger()
 
 
 class TicketBot(commands.Bot):

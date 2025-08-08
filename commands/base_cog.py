@@ -12,43 +12,14 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 
+# Import new error handling system
+from errors import (
+    TicketBotError, PermissionError, ConfigurationError,
+    handle_errors, send_error_embed, require_staff_role,
+    log_error, format_error_message
+)
 
 logger = logging.getLogger(__name__)
-
-
-class TicketBotError(Exception):
-    """Base exception for ticket bot errors."""
-    pass
-
-
-class PermissionError(TicketBotError):
-    """User permission errors."""
-    pass
-
-
-class ConfigurationError(TicketBotError):
-    """Configuration-related errors."""
-    pass
-
-
-def require_staff_role():
-    """Decorator to check if user has staff role permissions."""
-    def decorator(func: Callable) -> Callable:
-        @wraps(func)
-        async def wrapper(self, interaction: discord.Interaction, *args, **kwargs):
-            # Check if user has staff permissions
-            if not await self.check_staff_permissions(interaction.user, interaction.guild):
-                embed = discord.Embed(
-                    title="❌ Permission Denied",
-                    description="You don't have permission to use this command. Staff role required.",
-                    color=discord.Color.red()
-                )
-                await interaction.response.send_message(embed=embed, ephemeral=True)
-                return
-            
-            return await func(self, interaction, *args, **kwargs)
-        return wrapper
-    return decorator
 
 
 def require_admin_role():
@@ -59,67 +30,15 @@ def require_admin_role():
             # Check if user has admin permissions
             if not (interaction.user.guild_permissions.administrator or 
                    await self.check_admin_permissions(interaction.user, interaction.guild)):
-                embed = discord.Embed(
-                    title="❌ Permission Denied",
-                    description="You don't have permission to use this command. Administrator role required.",
-                    color=discord.Color.red()
+                raise PermissionError(
+                    f"User {interaction.user.id} lacks admin permissions",
+                    required_permission="administrator",
+                    user_message="You don't have permission to use this command. Administrator role required."
                 )
-                await interaction.response.send_message(embed=embed, ephemeral=True)
-                return
             
             return await func(self, interaction, *args, **kwargs)
         return wrapper
     return decorator
-
-
-def handle_errors(func: Callable) -> Callable:
-    """Decorator to handle common errors in command functions."""
-    @wraps(func)
-    async def wrapper(self, interaction: discord.Interaction, *args, **kwargs):
-        try:
-            return await func(self, interaction, *args, **kwargs)
-        except PermissionError as e:
-            embed = discord.Embed(
-                title="❌ Permission Error",
-                description=str(e),
-                color=discord.Color.red()
-            )
-            if interaction.response.is_done():
-                await interaction.followup.send(embed=embed, ephemeral=True)
-            else:
-                await interaction.response.send_message(embed=embed, ephemeral=True)
-        except ConfigurationError as e:
-            embed = discord.Embed(
-                title="⚙️ Configuration Error",
-                description=f"Bot configuration issue: {str(e)}",
-                color=discord.Color.orange()
-            )
-            if interaction.response.is_done():
-                await interaction.followup.send(embed=embed, ephemeral=True)
-            else:
-                await interaction.response.send_message(embed=embed, ephemeral=True)
-        except TicketBotError as e:
-            embed = discord.Embed(
-                title="❌ Error",
-                description=str(e),
-                color=discord.Color.red()
-            )
-            if interaction.response.is_done():
-                await interaction.followup.send(embed=embed, ephemeral=True)
-            else:
-                await interaction.response.send_message(embed=embed, ephemeral=True)
-        except Exception as e:
-            logger.error(f"Unexpected error in {func.__name__}: {e}", exc_info=True)
-            embed = discord.Embed(
-                title="❌ Unexpected Error",
-                description="An unexpected error occurred. Please try again later.",
-                color=discord.Color.red()
-            )
-            if interaction.response.is_done():
-                await interaction.followup.send(embed=embed, ephemeral=True)
-            else:
-                await interaction.response.send_message(embed=embed, ephemeral=True)
-    return wrapper
 
 
 class BaseCog(commands.Cog):
@@ -170,17 +89,8 @@ class BaseCog(commands.Cog):
     
     async def send_error_embed(self, interaction: discord.Interaction, title: str, description: str, 
                               color: discord.Color = discord.Color.red(), ephemeral: bool = True):
-        """Send a standardized error embed."""
-        embed = discord.Embed(
-            title=title,
-            description=description,
-            color=color
-        )
-        
-        if interaction.response.is_done():
-            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
-        else:
-            await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+        """Send a standardized error embed using the new error handling system."""
+        await send_error_embed(interaction, title, description, color, ephemeral)
     
     async def send_success_embed(self, interaction: discord.Interaction, title: str, description: str,
                                 ephemeral: bool = False):
