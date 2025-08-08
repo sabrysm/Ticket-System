@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  discord-bot:
+    build: .
+    container_name: discord-ticket-bot
+    restart: unless-stopped
+    environment:
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - DATABASE_TYPE=${DATABASE_TYPE:-sqlite}
+      - DATABASE_URL=${DATABASE_URL:-/app/data/tickets.db}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - COMMAND_PREFIX=${COMMAND_PREFIX:-!}
+      - CONFIG_FILE=/app/config/config.json
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+      - ./logs:/app/logs
+    networks:
+      - bot-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import asyncio; from startup_validator import StartupValidator; validator = StartupValidator(); success, _ = asyncio.run(validator.run_full_validation()); exit(0 if success else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Add database service for MySQL
+  # mysql:
+  #   image: mysql:8.0
+  #   container_name: discord-bot-mysql
+  #   restart: unless-stopped
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+  #     MYSQL_DATABASE: ${MYSQL_DATABASE:-ticket_bot}
+  #     MYSQL_USER: ${MYSQL_USER:-ticket_bot}
+  #     MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+  #   volumes:
+  #     - mysql_data:/var/lib/mysql
+  #   networks:
+  #     - bot-network
+  #   ports:
+  #     - "3306:3306"
+
+  # Optional: Add MongoDB service
+  # mongodb:
+  #   image: mongo:6.0
+  #   container_name: discord-bot-mongodb
+  #   restart: unless-stopped
+  #   environment:
+  #     MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+  #     MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+  #     MONGO_INITDB_DATABASE: ${MONGO_DATABASE:-ticket_bot}
+  #   volumes:
+  #     - mongodb_data:/data/db
+  #   networks:
+  #     - bot-network
+  #   ports:
+  #     - "27017:27017"
+
+networks:
+  bot-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  mongodb_data:
