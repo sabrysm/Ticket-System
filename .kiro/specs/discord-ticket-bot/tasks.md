@@ -156,15 +156,21 @@
   - Write unit tests for admin commands and permission validation
   - _Requirements: 2.1, 2.2, 2.4, 8.1, 8.2, 8.3_
 
-- [ ] 6. Implement Discord UI components
-- [ ] 6.1 Create ticket creation embed and button system
+- [-] 6. Implement Discord UI components
+
+
+- [x] 6.1 Create ticket creation embed and button system
+
+
+
   - Design and implement ticket creation embed with clear instructions
   - Create persistent view with "Create Ticket" button
   - Implement button interaction handler that triggers ticket creation
   - Write unit tests for embed creation and button interactions
   - _Requirements: 2.1, 2.2, 2.3_
 
-- [ ] 6.2 Implement ticket creation workflow
+- [-] 6.2 Implement ticket creation workflow
+
   - Create ticket creation interaction handler that prevents duplicate tickets
   - Implement channel creation with proper permissions and naming
   - Add user notification system for successful ticket creation

@@ -434,10 +434,10 @@ class TestTicketEmbedCommand:
         await admin_cog.send_ticket_embed.callback(admin_cog, mock_interaction)
         
         # Should send error message
-        mock_interaction.response.send_message.assert_called_once()
-        args, kwargs = mock_interaction.response.send_message.call_args
-        assert kwargs['ephemeral'] is True
-        assert "Invalid Channel" in str(args[0])
+        mock_interaction.followup.send.assert_called_once()
+        args, kwargs = mock_interaction.followup.send.call_args
+        embed = kwargs['embed']
+        assert "Invalid Channel" in embed.title
     
     @pytest.mark.asyncio
     async def test_send_ticket_embed_permission_denied(
@@ -453,8 +453,8 @@ class TestTicketEmbedCommand:
         # Should send error message
         mock_interaction.followup.send.assert_called_once()
         args, kwargs = mock_interaction.followup.send.call_args
-        assert kwargs['ephemeral'] is True
-        assert "Permission Denied" in str(args[0])
+        embed = kwargs['embed']
+        assert "Permission Denied" in embed.title
 
 
 class TestConfigCommand:
@@ -722,6 +722,7 @@ class TestTicketCreateView:
         interaction = MagicMock(spec=discord.Interaction)
         interaction.response = MagicMock()
         interaction.response.defer = AsyncMock()
+        interaction.response.send_message = AsyncMock()
         interaction.followup = MagicMock()
         interaction.followup.send = AsyncMock()
         interaction.client = MagicMock()
@@ -759,7 +760,7 @@ class TestTicketCreateView:
         
         # Check success message
         args, kwargs = mock_interaction_button.followup.send.call_args
-        embed = args[0]
+        embed = kwargs['embed']
         assert "Ticket Created" in embed.title
         assert "TICKET-001" in embed.description
     
@@ -777,7 +778,8 @@ class TestTicketCreateView:
         mock_interaction_button.response.send_message.assert_called_once()
         args, kwargs = mock_interaction_button.response.send_message.call_args
         assert kwargs['ephemeral'] is True
-        assert "Service Unavailable" in str(args[0])
+        embed = kwargs['embed']
+        assert "Service Unavailable" in embed.title
     
     @pytest.mark.asyncio
     async def test_create_ticket_button_already_has_ticket(
@@ -795,7 +797,7 @@ class TestTicketCreateView:
         # Should send appropriate error message
         mock_interaction_button.followup.send.assert_called_once()
         args, kwargs = mock_interaction_button.followup.send.call_args
-        embed = args[0]
+        embed = kwargs['embed']
         assert "Ticket Already Exists" in embed.title
     
     @pytest.mark.asyncio
@@ -814,7 +816,7 @@ class TestTicketCreateView:
         # Should send generic error message
         mock_interaction_button.followup.send.assert_called_once()
         args, kwargs = mock_interaction_button.followup.send.call_args
-        embed = args[0]
+        embed = kwargs['embed']
         assert "Ticket Creation Failed" in embed.title
 
 
