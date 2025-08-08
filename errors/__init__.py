@@ -15,14 +15,17 @@ from .exceptions import (
     TicketClosingError,
     TranscriptError,
     ValidationError,
-    RateLimitError
+    RateLimitError,
+    TicketNotFoundError
 )
 
 from .handlers import (
     handle_errors,
     send_error_embed,
     format_error_message,
-    log_error
+    log_error,
+    handle_database_errors,
+    require_staff_role
 )
 
 __all__ = [
@@ -37,10 +40,13 @@ __all__ = [
     'TranscriptError',
     'ValidationError',
     'RateLimitError',
+    'TicketNotFoundError',
     
     # Handler functions
     'handle_errors',
     'send_error_embed',
     'format_error_message',
-    'log_error'
+    'log_error',
+    'handle_database_errors',
+    'require_staff_role'
 ]
