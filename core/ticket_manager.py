@@ -10,7 +10,7 @@ import logging
 import secrets
 import string
 import io
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
@@ -203,7 +203,7 @@ class TicketManager:
                 channel_id=channel.id,
                 creator_id=user.id,
                 status=TicketStatus.OPEN,
-                created_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc),
                 participants=[user.id]
             )
             
@@ -216,7 +216,7 @@ class TicketManager:
                 description=f"Hello {user.mention}! Your support ticket has been created.\n\n"
                            f"Please describe your issue and a staff member will assist you shortly.",
                 color=discord.Color.green(),
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(timezone.utc)
             )
             embed.add_field(name="Ticket ID", value=ticket_id, inline=True)
             embed.add_field(name="Created by", value=user.mention, inline=True)
@@ -314,7 +314,7 @@ class TicketManager:
                     title="User Added",
                     description=f"{user.mention} has been added to this ticket by {staff.mention}",
                     color=discord.Color.blue(),
-                    timestamp=datetime.utcnow()
+                    timestamp=datetime.now(timezone.utc)
                 )
                 await channel.send(embed=embed)
                 
@@ -417,7 +417,7 @@ class TicketManager:
                     title="User Removed",
                     description=f"{user.mention} has been removed from this ticket by {staff.mention}",
                     color=discord.Color.orange(),
-                    timestamp=datetime.utcnow()
+                    timestamp=datetime.now(timezone.utc)
                 )
                 await channel.send(embed=embed)
                 
@@ -531,7 +531,7 @@ class TicketManager:
         try:
             transcript_lines = []
             transcript_lines.append(f"Ticket Transcript - {channel.name}")
-            transcript_lines.append(f"Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}")
+            transcript_lines.append(f"Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}")
             transcript_lines.append("=" * 50)
             transcript_lines.append("")
             
@@ -599,7 +599,7 @@ class TicketManager:
             transcripts_dir.mkdir(parents=True, exist_ok=True)
             
             # Generate filename with timestamp
-            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
             filename = f"ticket_{ticket_id}_{timestamp}.txt"
             file_path = transcripts_dir / filename
             
@@ -715,7 +715,7 @@ class TicketManager:
                     title="Ticket Closing",
                     description=f"This ticket is being closed by {staff.mention}",
                     color=discord.Color.red(),
-                    timestamp=datetime.utcnow()
+                    timestamp=datetime.now(timezone.utc)
                 )
                 if reason:
                     embed.add_field(name="Reason", value=reason, inline=False)
@@ -764,7 +764,7 @@ class TicketManager:
                             title="Ticket Closed",
                             description=f"Your ticket `{ticket.ticket_id}` has been closed.",
                             color=discord.Color.blue(),
-                            timestamp=datetime.utcnow()
+                            timestamp=datetime.now(timezone.utc)
                         )
                         if reason:
                             dm_embed.add_field(name="Reason", value=reason, inline=False)
@@ -847,7 +847,7 @@ class TicketManager:
                             title="Ticket Closed",
                             description=f"Your ticket `{ticket_id}` has been closed.",
                             color=discord.Color.blue(),
-                            timestamp=datetime.utcnow()
+                            timestamp=datetime.now(timezone.utc)
                         )
                         if reason:
                             dm_embed.add_field(name="Reason", value=reason, inline=False)

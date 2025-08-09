@@ -144,7 +144,7 @@ class TicketBot(commands.Bot):
             if not self.config_manager:
                 raise RuntimeError("Config manager must be initialized before ticket manager")
             
-            self.ticket_manager = TicketManager(self, self.database_adapter)
+            self.ticket_manager = TicketManager(self, self.database_adapter, self.config_manager)
             logger.info("Ticket manager initialized successfully")
             
         except Exception as e:

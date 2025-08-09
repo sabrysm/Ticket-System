@@ -1,0 +1,18 @@
+Ticket Transcript - ticket-0h4jdwml
+Generated: 2025-08-09 23:23:49 UTC
+==================================================
+
+[2025-08-09 23:21:52 UTC] TicketBot-DevRoom (1403869409667186799): [Embed Message] Title: Ticket 0H4JDWML Description: Hello <@512369282143748106>! Your support ticket has been created.
+
+Please describe your issue and a staff member will assist you shortly.
+[2025-08-09 23:22:10 UTC] Sabrysm (512369282143748106): cool
+[2025-08-09 23:22:54 UTC] TicketBot-DevRoom (1403869409667186799): [Embed Message] Title: ✅ Setup Complete Description: Ticket system has been configured successfully!
+[2025-08-09 23:23:48 UTC] TicketBot-DevRoom (1403869409667186799): [Embed Message] Title: 🔒 Closing Ticket Description: Ticket 0H4JDWML is being closed by <@512369282143748106>.
+
+**Reason:** No reason provided
+
+Generating transcript and archiving channel...
+[2025-08-09 23:23:49 UTC] TicketBot-DevRoom (1403869409667186799): [Embed Message] Title: Ticket Closing Description: This ticket is being closed by <@512369282143748106>
+
+==================================================
+End of Transcript

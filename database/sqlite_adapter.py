@@ -4,7 +4,8 @@ SQLite database adapter implementation for the Discord ticket bot.
 import aiosqlite
 import json
 import logging
-from datetime import datetime
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 from pathlib import Path
 
@@ -85,16 +86,17 @@ class SQLiteAdapter(DatabaseAdapter):
         except Exception:
             return False
     
+    @asynccontextmanager
     async def _get_connection(self):
         """Get a database connection with proper configuration."""
-        conn = await aiosqlite.connect(self.db_path, timeout=self.timeout)
-        conn.row_factory = aiosqlite.Row
-        return conn
+        async with aiosqlite.connect(self.db_path, timeout=self.timeout) as conn:
+            conn.row_factory = aiosqlite.Row
+            yield conn
     
     async def _initialize_schema(self) -> None:
         """Initialize database schema with tables and indexes."""
         try:
-            async with await self._get_connection() as conn:
+            async with self._get_connection() as conn:
                 # Create tickets table
                 await conn.execute("""
                     CREATE TABLE IF NOT EXISTS tickets (
@@ -170,7 +172,7 @@ class SQLiteAdapter(DatabaseAdapter):
             DatabaseError: If creation fails
         """
         try:
-            async with await self._get_connection() as conn:
+            async with self._get_connection() as conn:
                 await conn.execute("""
                     INSERT INTO tickets (
                         ticket_id, guild_id, channel_id, creator_id, status,
@@ -215,7 +217,7 @@ class SQLiteAdapter(DatabaseAdapter):
             DatabaseError: If retrieval fails
         """
         try:
-            async with await self._get_connection() as conn:
+            async with self._get_connection() as conn:
                 cursor = await conn.execute("""
                     SELECT * FROM tickets WHERE ticket_id = ?
                 """, (ticket_id,))
@@ -244,7 +246,7 @@ class SQLiteAdapter(DatabaseAdapter):
             DatabaseError: If retrieval fails
         """
         try:
-            async with await self._get_connection() as conn:
+            async with self._get_connection() as conn:
                 cursor = await conn.execute("""
                     SELECT * FROM tickets 
                     WHERE creator_id = ? AND guild_id = ?
@@ -273,7 +275,7 @@ class SQLiteAdapter(DatabaseAdapter):
             DatabaseError: If retrieval fails
         """
         try:
-            async with await self._get_connection() as conn:
+            async with self._get_connection() as conn:
                 if status:
                     cursor = await conn.execute("""
                         SELECT * FROM tickets 
@@ -336,7 +338,7 @@ class SQLiteAdapter(DatabaseAdapter):
             values.append(ticket_id)
             query = f"UPDATE tickets SET {', '.join(set_clauses)} WHERE ticket_id = ?"
             
-            async with await self._get_connection() as conn:
+            async with self._get_connection() as conn:
                 cursor = await conn.execute(query, values)
                 await conn.commit()
                 
@@ -366,7 +368,7 @@ class SQLiteAdapter(DatabaseAdapter):
         try:
             updates = {
                 'status': TicketStatus.CLOSED,
-                'closed_at': datetime.utcnow()
+                'closed_at': datetime.now(timezone.utc)
             }
             if transcript_url:
                 updates['transcript_url'] = transcript_url
@@ -391,7 +393,7 @@ class SQLiteAdapter(DatabaseAdapter):
             DatabaseError: If deletion fails
         """
         try:
-            async with await self._get_connection() as conn:
+            async with self._get_connection() as conn:
                 cursor = await conn.execute("""
                     DELETE FROM tickets WHERE ticket_id = ?
                 """, (ticket_id,))
@@ -479,7 +481,7 @@ class SQLiteAdapter(DatabaseAdapter):
             DatabaseError: If retrieval fails
         """
         try:
-            async with await self._get_connection() as conn:
+            async with self._get_connection() as conn:
                 cursor = await conn.execute("""
                     SELECT * FROM tickets 
                     WHERE creator_id = ? AND guild_id = ? AND status = 'open'
