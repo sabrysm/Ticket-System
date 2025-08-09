@@ -1,0 +1,34 @@
+{
+  "unit_tests": {
+    "passed": 0,
+    "failed": 0,
+    "errors": []
+  },
+  "integration_tests": {
+    "passed": 0,
+    "failed": 1,
+    "errors": [
+      "ERROR: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]\n__main__.py: error: unrecognized arguments: --json-report --json-report-file=test_report.json\n  inifile: None\n  rootdir: E:\\Programming\\Ticket-System\n\n"
+    ]
+  },
+  "system_tests": {
+    "passed": 0,
+    "failed": 1,
+    "errors": [
+      "ERROR: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]\n__main__.py: error: unrecognized arguments: --json-report --json-report-file=test_report.json\n  inifile: None\n  rootdir: E:\\Programming\\Ticket-System\n\n"
+    ]
+  },
+  "final_tests": {
+    "passed": 0,
+    "failed": 1,
+    "errors": [
+      "Final Integration Tests crashed: No module named 'tests.test_final_integration'"
+    ]
+  },
+  "performance_tests": {
+    "passed": 0,
+    "failed": 0,
+    "errors": []
+  },
+  "total_duration": 9.140719175338745
+}
